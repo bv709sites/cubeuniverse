@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite Cube Universe</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            background-color: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <div>W - Move Forward</div>
+        <div>S - Move Backward</div>
+        <div>A - Move Left</div>
+        <div>D - Move Right</div>
+        <div>Space - Move Up</div>
+        <div>Shift - Move Down</div>
+        <div>R - Regenerate Cubes</div>
+        <div>Click or press any key to start music</div>
+    </div>
+    <audio id="bgm" loop>
+        <source src="bgm.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Set up the scene, camera, and renderer
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Play background music after user interaction
+        const bgm = document.getElementById('bgm');
+        bgm.volume = 0.5;
+
+        function startAudio() {
+            bgm.play();
+            document.removeEventListener('click', startAudio);
+            document.removeEventListener('keydown', startAudio);
+        }
+
+        document.addEventListener('click', startAudio);
+        document.addEventListener('keydown', startAudio);
+
+        // Create an array to store our cubes
+        let cubes = [];
+
+        // Create cube geometry and material
+        const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
+        const edgesGeometry = new THREE.EdgesGeometry(cubeGeometry);
+        const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+
+        // Function to create a cube
+        function createCube() {
+            const cube = new THREE.LineSegments(edgesGeometry, lineMaterial);
+            cube.position.set(
+                Math.random() * 200 - 100 + camera.position.x,
+                Math.random() * 200 - 100 + camera.position.y,
+                Math.random() * 200 - 100 + camera.position.z
+            );
+            cube.rotation.set(
+                Math.random() * Math.PI,
+                Math.random() * Math.PI,
+                Math.random() * Math.PI
+            );
+            cube.scale.set(
+                Math.random() * 2 + 0.5,
+                Math.random() * 2 + 0.5,
+                Math.random() * 2 + 0.5
+            );
+            scene.add(cube);
+            cubes.push(cube);
+        }
+
+        // Function to generate cube field
+        function generateCubeField() {
+            // Remove existing cubes
+            cubes.forEach(cube => scene.remove(cube));
+            cubes = [];
+
+            // Create new cubes
+            for (let i = 0; i < 2000; i++) {
+                createCube();
+            }
+        }
+
+        // Generate initial cubes
+        generateCubeField();
+
+        // Position camera
+        camera.position.z = 5;
+
+        // Mouse and keyboard controls
+        let moveForward = false;
+        let moveBackward = false;
+        let moveLeft = false;
+        let moveRight = false;
+        let moveUp = false;
+        let moveDown = false;
+
+        let mouseX = 0, mouseY = 0;
+        let windowHalfX = window.innerWidth / 2;
+        let windowHalfY = window.innerHeight / 2;
+
+        document.addEventListener('mousemove', onMouseMove, false);
+        document.addEventListener('keydown', onKeyDown, false);
+        document.addEventListener('keyup', onKeyUp, false);
+
+        function onMouseMove(event) {
+            mouseX = (event.clientX - windowHalfX) / 200;
+            mouseY = (event.clientY - windowHalfY) / 200;
+        }
+
+        function onKeyDown(event) {
+            switch (event.code) {
+                case 'KeyW': moveForward = true; break;
+                case 'KeyS': moveBackward = true; break;
+                case 'KeyA': moveLeft = true; break;
+                case 'KeyD': moveRight = true; break;
+                case 'Space': moveUp = true; break;
+                case 'ShiftLeft': moveDown = true; break;
+                case 'KeyR': generateCubeField(); break;
+            }
+        }
+
+        function onKeyUp(event) {
+            switch (event.code) {
+                case 'KeyW': moveForward = false; break;
+                case 'KeyS': moveBackward = false; break;
+                case 'KeyA': moveLeft = false; break;
+                case 'KeyD': moveRight = false; break;
+                case 'Space': moveUp = false; break;
+                case 'ShiftLeft': moveDown = false; break;
+            }
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Update camera rotation based on mouse position
+            camera.rotation.y += (mouseX - camera.rotation.y) * 0.02;
+            camera.rotation.x += (-mouseY - camera.rotation.x) * 0.02;
+
+            // Update camera position based on key presses
+            const moveSpeed = 0.5;
+            if (moveForward) camera.translateZ(-moveSpeed);
+            if (moveBackward) camera.translateZ(moveSpeed);
+            if (moveLeft) camera.translateX(-moveSpeed);
+            if (moveRight) camera.translateX(moveSpeed);
+            if (moveUp) camera.translateY(moveSpeed);
+            if (moveDown) camera.translateY(-moveSpeed);
+
+            // Rotate each cube
+            cubes.forEach(cube => {
+                cube.rotation.x += 0.001;
+                cube.rotation.y += 0.001;
+            });
+
+            // Create infinite effect
+            const visibilityRadius = 150;
+            const generationRadius = 140;
+            
+            cubes = cubes.filter(cube => {
+                if (cube.position.distanceTo(camera.position) > visibilityRadius) {
+                    scene.remove(cube);
+                    return false;
+                }
+                return true;
+            });
+
+            // Generate new cubes if needed
+            while (cubes.length < 2000) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * generationRadius;
+                const x = camera.position.x + Math.cos(angle) * radius;
+                const y = camera.position.y + (Math.random() * 200 - 100);
+                const z = camera.position.z + Math.sin(angle) * radius;
+
+                const cube = new THREE.LineSegments(edgesGeometry, lineMaterial);
+                cube.position.set(x, y, z);
+                cube.rotation.set(
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI
+                );
+                cube.scale.set(
+                    Math.random() * 2 + 0.5,
+                    Math.random() * 2 + 0.5,
+                    Math.random() * 2 + 0.5
+                );
+                scene.add(cube);
+                cubes.push(cube);
+            }
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle window resizing
+        window.addEventListener('resize', () => {
+            windowHalfX = window.innerWidth / 2;
+            windowHalfY = window.innerHeight / 2;
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
